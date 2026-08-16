@@ -33,7 +33,7 @@ dependencies {
     // Spring AI Ollama Starter (Local AI Runtime)
     implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter'
     
-    // Spring AI OpenAI Starter (Dung de ket noi OpenRouter Cloud)
+    // Spring AI OpenAI Starter (Dung de ket noi OpenRouter / Gemini Cloud qua OpenAI-compatible API)
     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
     
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -60,95 +60,81 @@ tasks.named('test') {
 ```properties
 spring.application.name=hybrid-ai-runtime
 spring.profiles.active=local
+
+# Tat cac modality khong dung den de tranh conflict/missing keys
+spring.ai.openai.embedding.enabled=false
+spring.ai.openai.image.enabled=false
+spring.ai.openai.audio.transcription.enabled=false
+spring.ai.openai.audio.speech.enabled=false
+spring.ai.openai.moderation.enabled=false
+spring.ai.ollama.embedding.enabled=false
 ```
 
 ### b. File `application-local.properties` (Môi trường Local - Ollama)
 Đường dẫn: `src/main/resources/application-local.properties`
 
 ```properties
+# Local Profile: Ollama
+spring.ai.ollama.chat.enabled=true
 spring.ai.ollama.base-url=http://localhost:11434
 spring.ai.ollama.chat.options.model=qwen2.5-coder:7b
+
+# Tat OpenAI khi chay local
+spring.ai.openai.chat.enabled=false
+spring.ai.openai.embedding.enabled=false
+spring.ai.openai.api-key=local-dummy-key
 ```
 
-### c. File `application-cloud.properties` (Môi trường Cloud - OpenRouter / Gemini)
+### c. File `application-cloud.properties` (Môi trường Cloud - Gemini / OpenRouter)
 Đường dẫn: `src/main/resources/application-cloud.properties`
 
 ```properties
-spring.ai.openai.api-key=${OPENROUTER_API_KEY}
-spring.ai.openai.base-url=https://openrouter.ai/api/v1
-spring.ai.openai.chat.options.model=google/gemini-2.5-flash
+# Cloud Profile: Gemini / OpenRouter qua OpenAI-compatible API
+spring.ai.openai.enabled=true
+spring.ai.openai.chat.enabled=true
+spring.ai.openai.api-key=${GEMINI_API_KEY:${OPENROUTER_API_KEY}}
+spring.ai.openai.base-url=${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
+spring.ai.openai.chat.options.model=${AI_MODEL:gemini-2.5-flash}
+
+# Tat Ollama khi chay cloud
+spring.ai.ollama.chat.enabled=false
+spring.ai.ollama.embedding.enabled=false
 ```
 
 ---
 
 ## 3. HƯỚNG DẪN CHẠY ỨNG DỤNG Ở PROFILE CLOUD TỪ DÒNG LỆNH (CLI)
 
-### Cách 1: Chạy trực tiếp qua Gradle BootRun (Khuyên dùng trong phát triển)
+### Chạy trực tiếp qua Gradle BootRun:
 
 - Trên Windows (PowerShell):
 ```powershell
-$env:OPENROUTER_API_KEY="sk-or-v1-your-actual-api-key"
-gradle bootRun --args='--spring.profiles.active=cloud'
-```
-
-- Trên Windows (CMD):
-```cmd
-set OPENROUTER_API_KEY=sk-or-v1-your-actual-api-key
-gradle bootRun --args="--spring.profiles.active=cloud"
-```
-
-- Trên Linux / macOS (Bash):
-```bash
-export OPENROUTER_API_KEY="sk-or-v1-your-actual-api-key"
+$env:GEMINI_API_KEY="your-gemini-api-key"
 ./gradlew bootRun --args='--spring.profiles.active=cloud'
 ```
 
-### Cách 2: Chạy file JAR đã đóng gói (Môi trường Staging / Production)
-
-1. Đóng gói dự án thành file JAR:
-```bash
-gradle build -x test
+- Hoặc nếu dùng OpenRouter Key:
+```powershell
+$env:OPENROUTER_API_KEY="sk-or-v1-your-openrouter-key"
+$env:AI_BASE_URL="https://openrouter.ai/api/v1"
+$env:AI_MODEL="google/gemini-2.5-flash"
+./gradlew bootRun --args='--spring.profiles.active=cloud'
 ```
-
-2. Chạy ứng dụng với tham số kích hoạt profile cloud:
-```bash
-java -Dspring.profiles.active=cloud -jar build/libs/ss2-bt4-0.0.1-SNAPSHOT.jar
-```
-(Hoặc truyền qua System Property / Command Line Argument: `java -jar build/libs/ss2-bt4-0.0.1-SNAPSHOT.jar --spring.profiles.active=cloud`)
 
 ---
 
-## 4. HƯỚNG DẪN CÁC BƯỚC THỰC HIỆN THỦ CÔNG DÀNH CHO HỌC VIÊN
+## 4. HƯỚNG DẪN KIỂM THỬ ENDPOINT
 
-Do máy của bạn mới cài đặt Ollama và chưa chạy service, dưới đây là các bước bạn cần thực hiện:
-
-### Bước 1: Khởi động Ollama và tải Model Qwen (Dành cho Local)
-1. Mở một cửa sổ Terminal / PowerShell mới và chạy lệnh khởi động Ollama service (nếu chưa chạy nền):
-   ```bash
-   ollama serve
-   ```
-2. Mở một cửa sổ Terminal khác và tải mô hình Qwen 2.5 Coder 7B:
-   ```bash
-   ollama pull qwen2.5-coder:7b
-   ```
-   *(Lưu ý: Mô hình 7B dung lượng khoảng 4.7 GB, cần có kết nối mạng ổn định để tải về).*
-
-### Bước 2: Chạy ứng dụng ở chế độ Local (Mặc định)
-```bash
-cd ss2-bt4
-gradle bootRun
+1. Khởi động ứng dụng (Local hoặc Cloud).
+2. Mở trình duyệt hoặc PowerShell gọi API:
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/chat?prompt=Xin chao"
 ```
-- Khi ứng dụng khởi động thành công tại cổng 8080, mở trình duyệt hoặc Postman truy cập:
-  `http://localhost:8080/api/chat?prompt=Xin chao`
-- Ứng dụng sẽ gửi prompt đến Ollama chạy local tại cổng 11434.
-
-### Bước 3: Chạy ứng dụng ở chế độ Cloud (OpenRouter / Gemini)
-1. Đăng ký tài khoản và lấy API Key tại [OpenRouter](https://openrouter.ai/keys).
-2. Thiết lập biến môi trường và chạy profile cloud:
-   ```powershell
-   $env:OPENROUTER_API_KEY="sk-or-v1-xxx..."
-   gradle bootRun --args='--spring.profiles.active=cloud'
-   ```
-- Mở trình duyệt truy cập:
-  `http://localhost:8080/api/chat?prompt=Xin chao`
-- Lúc này ứng dụng sẽ tự động chuyển sang gọi model `google/gemini-2.5-flash` qua OpenRouter.
+Response JSON:
+```json
+{
+  "status": "success",
+  "prompt": "Xin chao",
+  "response": "Xin chào! Tôi có thể giúp gì cho bạn hôm nay?"
+}
+```

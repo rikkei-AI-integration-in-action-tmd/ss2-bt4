@@ -20,11 +20,23 @@ public class ChatController {
     }
 
     @GetMapping
-    public Map<String, String> chat(@RequestParam(defaultValue = "Xin chao! Ban la model nao?") String prompt) {
-        String response = chatClient.prompt()
-                .user(prompt)
-                .call()
-                .content();
-        return Map.of("prompt", prompt, "response", response != null ? response : "");
+    public Map<String, Object> chat(@RequestParam(defaultValue = "Xin chao! Ban la ai?") String prompt) {
+        try {
+            String response = chatClient.prompt()
+                    .user(prompt)
+                    .call()
+                    .content();
+            return Map.of(
+                    "status", "success",
+                    "prompt", prompt,
+                    "response", response != null ? response : ""
+            );
+        } catch (Exception e) {
+            return Map.of(
+                    "status", "error",
+                    "prompt", prompt,
+                    "error", e.getMessage() != null ? e.getMessage() : "Unknown error"
+            );
+        }
     }
 }
